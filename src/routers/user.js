@@ -1,4 +1,7 @@
 const express = require('express');
+const multer = require('multer');
+const sharp = require('sharp');
+
 const router = new express.Router();
 const User = require('../models/user');
 const auth = require('../middleware/auth');
@@ -118,6 +121,69 @@ router.delete('/users/profile', auth, async (req, res) => {
     res.send(req.user);
   } catch (err) {
     res.status(500).send(err);
+  }
+});
+
+const upload = multer({
+  // dest: 'avatars',
+  limits: { fileSize: 1000000 }, //1MB
+  fileFilter(req, file, cb) {
+    // if (!file.originalname.endsWith('.pdf')) {
+    //   return cb(new Error('please upload a pdf!'));
+    // }
+
+    if (!file.originalname.match(/.(jpg|jpeg|png)$/)) {
+      return cb(new Error('please upload a doc or docx!'));
+    }
+
+    cb(undefined, true);
+
+    // cb(new Error('file invalid'));
+    // cb(undefined, true);
+  },
+});
+
+router.post(
+  '/users/profile/avatar',
+  auth,
+  upload.single('avatar'),
+  async (req, res) => {
+    //sharp
+    const buffer = await sharp(req.file.buffer).resize({ width: 250, height: 250 }).png().toBuffer();
+    req.user.avatar = buffer;
+    await req.user.save();
+    res.status(201).send();
+  },
+  (error, req, res, next) => {
+    res.status(500).send({ error: error.message });
+  }
+);
+
+router.delete(
+  '/users/profile/avatar',
+  auth,
+  async (req, res) => {
+    req.user.avatar = undefined;
+
+    await req.user.save();
+    res.status(200).send();
+  },
+  (error, req, res, next) => res.status(500).send({ error: error.message })
+);
+
+router.get('/users/:id/avatar', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user || !user.avatar) {
+      res.status(404).send({ error: error.message });
+    }
+
+    // res.set('Content-Type', 'application/json')
+    res.set('Content-Type', 'image/png');
+    res.send(user.avatar);
+  } catch (err) {
+    res.status(404).send();
   }
 });
 
