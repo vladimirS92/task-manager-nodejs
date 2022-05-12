@@ -5,10 +5,12 @@ const sharp = require('sharp');
 const router = new express.Router();
 const User = require('../models/user');
 const auth = require('../middleware/auth');
+const { sendWelcomeEmail, sendCancellationEmail } = require('../emails/account');
 
 router.post('/users/register', async (req, res) => {
   try {
     const user = new User(req.body);
+    // await sendWelcomeEmail(req.user.email, req.user.name)
     await user.save();
     const token = await user.generateAuthToken();
 
@@ -118,6 +120,7 @@ router.delete('/users/profile', auth, async (req, res) => {
     // }
 
     await req.user.remove();
+    // await sendCancellationEmail(req.user.email, req.user.name)
     res.send(req.user);
   } catch (err) {
     res.status(500).send(err);
